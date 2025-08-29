@@ -20,7 +20,7 @@ def meansub(antenna_v):
 	return antenna_v_mean_sub
 
 # MAD based RFI mitigation
-def mad_rfi_sliding(chunk, threshold_multiplier, window_size, step_size):
+def mad_rfi_sliding(chunk, threshold_multiplier=5, window_size=512, step_size=1):
 	
 	rows, columns = chunk.shape
 	mitigated = chunk.copy()
@@ -40,14 +40,14 @@ def mad_rfi_sliding(chunk, threshold_multiplier, window_size, step_size):
 	return mitigated
 
 # Parallel processing for MAD based RFI mitigation
-def multi_process(row, threshold_multiplier, window_size, step_size):
+def multi_process(row):
 	num_processes = max(1, cpu_count() - 1)
 
 	chunk_size = int(np.ceil(row.shape[0] / num_processes))
 	chunks = [row[cn:cn + chunk_size] for cn in range(0, row.shape[0], chunk_size)]
 	
 	with Pool(processes = num_processes) as p:
-		clean_chunks = p.starmap(mad_rfi_sliding, [(chunk, threshold_multiplier, window_size, step_size) for chunk in chunks])
+		clean_chunks = p.map(mad_rfi_sliding, chunks)
 	
 	clean = np.vstack(clean_chunks)
 	return clean
@@ -158,10 +158,8 @@ if __name__ == '__main__':
 
     start_time = datetime.now()
     
-    ch1_v_rfi_mitigated = multi_process(
-    	ch1_v_mean_sub, threshold_multiplier, window_size, step_size)
-    ch2_v_rfi_mitigated = multi_process(
-    	ch2_v_mean_sub, threshold_multiplier, window_size, step_size)
+    ch1_v_rfi_mitigated = multi_process(ch1_v_mean_sub)
+    ch2_v_rfi_mitigated = multi_process(ch2_v_mean_sub)
     
     end_time = datetime.now()
     print(end_time - start_time)
